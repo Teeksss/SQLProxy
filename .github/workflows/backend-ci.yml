@@ -4,8 +4,10 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'backend/**'
+      - 'backend/**'       # Still relevant for backend code changes
       - 'frontend/**'
+      - 'pyproject.toml'   # Trigger if Poetry config changes
+      - 'poetry.lock'      # Trigger if lock file changes
       - '.github/workflows/backend-ci.yml'
     tags:
       - 'v*.*.*'
@@ -13,15 +15,15 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'pyproject.toml'
+      - 'poetry.lock'
       - '.github/workflows/backend-ci.yml'
 
 jobs:
-  build_and_test_backend: # Renamed for clarity, was 'build_and_test'
-    name: Build, Lint, and Test Backend (Poetry)
+  build_and_test_backend:
+    name: Build, Lint, and Test Backend (Poetry from Root)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend # All backend operations happen here
+    # No default working-directory here, commands will use repo root
 
     steps:
     - name: Checkout repository
@@ -35,54 +37,52 @@ jobs:
     - name: Install Poetry
       uses: snok/install-poetry@v1
       with:
-        virtualenvs-create: true # Recommended for CI
-        virtualenvs-in-project: true # Easier to cache
+        virtualenvs-create: true
+        virtualenvs-in-project: true # Creates .venv in the project root
         installer-parallel: true
 
     - name: Load cached venv
       id: cached-poetry-dependencies
       uses: actions/cache@v4
       with:
-        path: ./backend/.venv # Path to Poetry's virtualenv if virtualenvs-in-project is true
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+        path: ./.venv # Path to Poetry's virtualenv at the root
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }} # Hash the root poetry.lock
         restore-keys: |
           ${{ runner.os }}-poetry-
 
     - name: Install dependencies with Poetry
-      # Only run if cache wasn't hit or if it's a PR (to ensure fresh install for PR checks)
-      # For PRs, we always want to run install to catch issues with new/changed dependencies in poetry.lock
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true' || github.event_name == 'pull_request'
-      run: poetry install --no-interaction --no-root # --no-root if project itself is not installed as editable
+      run: poetry install --no-interaction --no-root # Run from root
 
-    # Linting and Testing using Poetry's environment
+    # Linting and Testing using Poetry's environment from the root
+    # Paths for tools like black, flake8, pytest might need to specify the backend directory
     - name: Check formatting with Black (via Poetry)
-      run: poetry run black --check .
+      run: poetry run black --check backend/ # Specify backend directory
 
     - name: Lint with Flake8 (via Poetry)
       run: |
-        poetry run flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        poetry run flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics # Specify backend directory
+        poetry run flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics # Specify backend directory
 
     - name: Test with Pytest (via Poetry)
-      run: poetry run pytest
+      # Pytest might auto-discover tests in backend/ or you might need to specify
+      run: poetry run pytest backend/ # Or poetry run pytest if tests are configured to be found from root
 
-    # This job no longer builds the final Docker image, only a test one if needed for PRs
-    # The final image build (with frontend) is done in the release job
     - name: Set up Docker Buildx
-      if: github.event_name == 'pull_request' # Only for PRs, if you want to test Docker build
+      if: github.event_name == 'pull_request'
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image (for PRs, no frontend assets, uses Poetry)
+    - name: Build Docker image (for PRs, no frontend assets, Poetry from root)
       if: github.event_name == 'pull_request'
       uses: docker/build-push-action@v5
       with:
-        context: ./backend # Context for backend-only Dockerfile
-        file: ./backend/Dockerfile # Assuming a Dockerfile optimized for Poetry
+        context: . # Context is root, Dockerfile needs to know this
+        file: ./Dockerfile.backend-pr # A Dockerfile at root for backend PRs
         push: false
         tags: local/sqlproxy-backend-pr-test:latest
 
-  build_frontend_and_package_release: # Renamed for clarity, was 'build_and_push_docker_image'
-    name: Build Frontend & Package Release (Docker with Poetry)
+  build_frontend_and_package_release:
+    name: Build Frontend & Package Release (Docker with Poetry from Root)
     runs-on: ubuntu-latest
     needs: build_and_test_backend
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
@@ -91,7 +91,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    # Step 1: Build Frontend Assets
     - name: Set up Node.js for Frontend Build
       uses: actions/setup-node@v4
       with:
@@ -105,7 +104,6 @@ jobs:
       working-directory: ./frontend
       run: npm run build # Output to ./frontend/dist
 
-    # Step 2: Backend Docker Build and Push (using Poetry)
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
@@ -119,11 +117,11 @@ jobs:
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository_owner }}/sqlproxy-backend
-    - name: Build and push Backend Docker image (Poetry, with frontend assets)
+    - name: Build and push Backend Docker image (Poetry from root, with frontend assets)
       uses: docker/build-push-action@v5
       with:
         context: . # Docker build context is the repository root
-        file: ./backend/Dockerfile.release # Using a specific Dockerfile for releases with Poetry multi-stage
+        file: ./Dockerfile.release # Dockerfile at root for releases
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

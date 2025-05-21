@@ -1,0 +1,33 @@
+# Stage 1: Build the application with Poetry (from root)
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+RUN pip install poetry
+
+# Copy Poetry config from root
+COPY pyproject.toml poetry.lock* ./
+
+# Install project dependencies (from root pyproject.toml)
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+# Copy the backend application code
+COPY backend/ ./backend/
+
+# Copy the built frontend assets
+COPY frontend/dist ./static/frontend # Or your desired static path in the image
+
+# Stage 2: Final lean image
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/.venv /.venv
+COPY --from=builder /app/backend/ ./backend/ # Copy backend code
+COPY --from=builder /app/static/ ./static/   # Copy static assets
+
+ENV PATH="/app/.venv/bin:$PATH"
+EXPOSE 8000
+# CMD needs to refer to your app within backend/
+# e.g., if main.py is in backend/sqlproxy/
+CMD ["uvicorn", "backend.sqlproxy.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,7 @@
+FROM python:3.11-slim
+WORKDIR /app
+RUN pip install poetry
+COPY pyproject.toml poetry.lock* ./
+RUN poetry install --no-interaction --no-ansi # Install dev dependencies too if needed for tests
+COPY backend/ ./backend/
+# Optional: CMD ["poetry", "run", "pytest", "backend/"]
