@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend # Default to frontend directory
+        working-directory: ./frontend
 
     steps:
     - name: Checkout repository
@@ -26,12 +26,12 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18' # Specify your project's Node.js version, e.g., 16, 18, 20
-        cache: 'npm' # Or 'yarn' if you use yarn
-        cache-dependency-path: frontend/package-lock.json # Or frontend/yarn.lock
+        node-version: '18' # Specify your project's Node.js version
+        cache: 'npm'       # Change to 'yarn' if you use yarn
+        cache-dependency-path: frontend/package-lock.json # Change to frontend/yarn.lock if you use yarn. ENSURE THIS FILE EXISTS.
 
     - name: Install dependencies
-      run: npm ci # 'npm ci' is generally recommended for CI for cleaner installs, or 'yarn install --frozen-lockfile'
+      run: npm ci # Change to 'yarn install --frozen-lockfile' if you use yarn
 
     - name: Lint code
       run: npm run lint # Assumes you have a "lint" script in frontend/package.json
@@ -42,10 +42,8 @@ jobs:
     - name: Build application
       run: npm run build # Assumes you have a "build" script in frontend/package.json
 
-    # Optional: Archive production artifacts
-    # This can be useful if you need to deploy these assets later or inspect them.
     - name: Archive production artifacts
       uses: actions/upload-artifact@v4
       with:
         name: frontend-build
-        path: frontend/dist # Adjust path to your build output directory (e.g., frontend/build, frontend/.next)
+        path: frontend/dist # Adjust path to your build output directory (e.g., frontend/build)

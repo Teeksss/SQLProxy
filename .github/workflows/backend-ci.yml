@@ -4,10 +4,10 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'backend/**'       # Still relevant for backend code changes
+      - 'backend/**'
       - 'frontend/**'
-      - 'pyproject.toml'   # Trigger if Poetry config changes
-      - 'poetry.lock'      # Trigger if lock file changes
+      - 'pyproject.toml'
+      - 'poetry.lock'
       - '.github/workflows/backend-ci.yml'
     tags:
       - 'v*.*.*'
@@ -23,7 +23,6 @@ jobs:
   build_and_test_backend:
     name: Build, Lint, and Test Backend (Poetry from Root)
     runs-on: ubuntu-latest
-    # No default working-directory here, commands will use repo root
 
     steps:
     - name: Checkout repository
@@ -46,38 +45,35 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ./.venv # Path to Poetry's virtualenv at the root
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }} # Hash the root poetry.lock
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-poetry-
 
     - name: Install dependencies with Poetry
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true' || github.event_name == 'pull_request'
-      run: poetry install --no-interaction --no-root # Run from root
+      run: poetry install --no-interaction --no-root
 
-    # Linting and Testing using Poetry's environment from the root
-    # Paths for tools like black, flake8, pytest might need to specify the backend directory
     - name: Check formatting with Black (via Poetry)
-      run: poetry run black --check backend/ # Specify backend directory
+      run: poetry run black --check backend/
 
     - name: Lint with Flake8 (via Poetry)
       run: |
-        poetry run flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics # Specify backend directory
-        poetry run flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics # Specify backend directory
+        poetry run flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        poetry run flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Test with Pytest (via Poetry)
-      # Pytest might auto-discover tests in backend/ or you might need to specify
-      run: poetry run pytest backend/ # Or poetry run pytest if tests are configured to be found from root
+      run: poetry run pytest backend/
 
     - name: Set up Docker Buildx
       if: github.event_name == 'pull_request'
       uses: docker/setup-buildx-action@v3
 
-    - name: Build Docker image (for PRs, no frontend assets, Poetry from root)
+    - name: Build Docker image for PR (Poetry from root, backend only)
       if: github.event_name == 'pull_request'
       uses: docker/build-push-action@v5
       with:
-        context: . # Context is root, Dockerfile needs to know this
-        file: ./Dockerfile.backend-pr # A Dockerfile at root for backend PRs
+        context: .
+        file: ./Dockerfile.backend-pr # Assumes Dockerfile.backend-pr is at root
         push: false
         tags: local/sqlproxy-backend-pr-test:latest
 
@@ -94,34 +90,39 @@ jobs:
     - name: Set up Node.js for Frontend Build
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+        node-version: '18' # Adjust to your frontend's Node.js version
+        cache: 'npm'       # Change to 'yarn' if you use yarn
+        cache-dependency-path: frontend/package-lock.json # Change to frontend/yarn.lock if you use yarn
+
     - name: Install Frontend Dependencies
       working-directory: ./frontend
-      run: npm ci
+      run: npm ci # Change to 'yarn install --frozen-lockfile' if you use yarn
+
     - name: Build Frontend Application
       working-directory: ./frontend
-      run: npm run build # Output to ./frontend/dist
+      run: npm run build # This should create ./frontend/dist (or similar)
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
-        username: ${{ github.actor }}
+        username: ${{ github.repository_owner }} # Corrected to use repository_owner
         password: ${{ secrets.GITHUB_TOKEN }}
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
+
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ghcr.io/${{ github.repository_owner }}/sqlproxy-backend
+
     - name: Build and push Backend Docker image (Poetry from root, with frontend assets)
       uses: docker/build-push-action@v5
       with:
-        context: . # Docker build context is the repository root
-        file: ./Dockerfile.release # Dockerfile at root for releases
+        context: .
+        file: ./Dockerfile.release # Assumes Dockerfile.release is at root
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

@@ -1,7 +1,17 @@
 FROM python:3.11-slim
+
 WORKDIR /app
-RUN pip install poetry
+
+ENV POETRY_VERSION=1.8.2 # Pin Poetry version
+RUN pip install "poetry==$POETRY_VERSION"
+
 COPY pyproject.toml poetry.lock* ./
-RUN poetry install --no-interaction --no-ansi # Install dev dependencies too if needed for tests
+
+# Install all dependencies including dev for testing, if needed
+RUN poetry install --no-interaction --no-ansi --no-root
+
 COPY backend/ ./backend/
+
 # Optional: CMD ["poetry", "run", "pytest", "backend/"]
+# Or a command to ensure the app can at least start
+CMD ["poetry", "run", "python", "-m", "backend.sqlproxy.main", "--help"] # Example if main has CLI

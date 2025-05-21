@@ -3,17 +3,13 @@ name: CD - Deploy to Kubernetes using Helm
 on:
   push:
     tags:
-      - 'v*.*.*' # Trigger on version tags, same as backend image push
-    paths: # Also consider changes to Helm chart itself, though tag is primary driver
-      - 'deploy/helm/**'
-      - '.github/workflows/cd-helm-deploy.yml'
+      - 'v*.*.*' # Trigger on version tags
 
 jobs:
   deploy_to_kubernetes:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
-    # Add environment for deployment if you use GitHub Environments for protection rules
-    # environment: production
+    # environment: production # Optional: if using GitHub Environments
 
     steps:
     - name: Checkout repository
@@ -28,7 +24,7 @@ jobs:
     - name: Set up Helm
       uses: azure/setup-helm@v3
       with:
-        version: 'v3.x' # Specify Helm 3 version, or latest stable
+        version: 'v3.x'
       id: helm
 
     - name: Get the version from the tag
@@ -38,13 +34,12 @@ jobs:
     - name: Deploy with Helm
       run: |
         helm upgrade --install sqlproxy \
-          ./deploy/helm/sqlproxy \ # Path to your Helm chart
-          --namespace your-namespace \ # Replace with your target Kubernetes namespace
+          ./deploy/helm/sqlproxy \ # ADJUST: Path to your Helm chart
+          --namespace your-namespace \ # REPLACE: your target Kubernetes namespace
           --create-namespace \
-          --set image.repository=ghcr.io/${{ github.repository_owner }}/sqlproxy-backend \ # Assuming this is the image name in your values.yaml
+          --set image.repository=ghcr.io/${{ github.repository_owner }}/sqlproxy-backend \
           --set image.tag=${{ steps.get_version.outputs.VERSION }} \
-          # Add any other --set commands or specify a values file:
-          # --values ./deploy/helm/sqlproxy/values-production.yaml \
-          --wait # Optional: wait for resources to be ready
+          # --values ./deploy/helm/sqlproxy/values-production.yaml \ # Optional
+          --wait # Optional
       env:
         KUBECONFIG: ${{ steps.kubeconfig.outputs.kubeconfig }}

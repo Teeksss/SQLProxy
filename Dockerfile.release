@@ -3,31 +3,42 @@ FROM python:3.11-slim as builder
 
 WORKDIR /app
 
-RUN pip install poetry
+# Install poetry
+ENV POETRY_VERSION=1.8.2 # Pin Poetry version for reproducibility
+RUN pip install "poetry==$POETRY_VERSION"
 
 # Copy Poetry config from root
 COPY pyproject.toml poetry.lock* ./
 
 # Install project dependencies (from root pyproject.toml)
-RUN poetry install --no-dev --no-interaction --no-ansi
+# --no-root: if your project is not meant to be installed itself in the venv
+RUN poetry install --no-dev --no-interaction --no-ansi --no-root
 
-# Copy the backend application code
+# Copy the backend application code into a backend/ subdirectory in the image
 COPY backend/ ./backend/
 
-# Copy the built frontend assets
-COPY frontend/dist ./static/frontend # Or your desired static path in the image
+# Copy the built frontend assets (assumes they are built to ./frontend/dist in a previous GH Actions step)
+# These are copied from the GitHub Actions workspace to the Docker build context.
+COPY frontend/dist ./static/frontend # Adjust ./static/frontend as needed for your app
 
 # Stage 2: Final lean image
 FROM python:3.11-slim
 
 WORKDIR /app
 
+# Copy the virtual environment from the builder stage
 COPY --from=builder /app/.venv /.venv
-COPY --from=builder /app/backend/ ./backend/ # Copy backend code
-COPY --from=builder /app/static/ ./static/   # Copy static assets
+# Copy the application code (which includes backend and static assets)
+COPY --from=builder /app/backend/ ./backend/
+COPY --from=builder /app/static/ ./static/
 
+# Make sure the Python interpreter from the .venv is in the PATH
 ENV PATH="/app/.venv/bin:$PATH"
-EXPOSE 8000
-# CMD needs to refer to your app within backend/
-# e.g., if main.py is in backend/sqlproxy/
+
+# Expose the port your application runs on
+EXPOSE 8000 # Or your application's port
+
+# Command to run your application (using the Python from the .venv)
+# This depends on how your Poetry project is structured and run
+# Example for FastAPI/Uvicorn, assuming your app is in backend/sqlproxy/main.py
 CMD ["uvicorn", "backend.sqlproxy.main:app", "--host", "0.0.0.0", "--port", "8000"]
