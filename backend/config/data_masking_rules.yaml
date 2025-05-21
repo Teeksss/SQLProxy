@@ -1,0 +1,116 @@
+# Default data masking rules for SQL Proxy
+# These rules will be loaded on startup
+
+# Credit card masking rule
+- table_name: ".*"
+  column_name: ".*credit.*|.*card.*|.*cc.*number.*"
+  masking_type: "format_preserving"
+  data_category: "pci"
+  description: "Mask credit card numbers"
+  options:
+    preserve_regex: "[^0-9]"
+    mask_char: "X"
+  priority: 100
+
+# Email masking rule
+- table_name: ".*"
+  column_name: ".*email.*|.*mail.*"
+  masking_type: "partial"
+  data_category: "pii"
+  description: "Mask email addresses"
+  options:
+    start_chars: 2
+    end_chars: 0
+    mask_char: "*"
+  priority: 90
+
+# Phone number masking rule
+- table_name: ".*"
+  column_name: ".*phone.*|.*tel.*|.*mobile.*"
+  masking_type: "custom"
+  data_category: "pii"
+  description: "Mask phone numbers"
+  options:
+    function: "phone_masker"
+    visible_last: 2
+    keep_country_code: true
+  priority: 80
+
+# Password masking rule
+- table_name: ".*"
+  column_name: ".*password.*|.*pwd.*|.*passcode.*"
+  masking_type: "full"
+  data_category: "credentials"
+  description: "Mask passwords"
+  replacement: "*******"
+  priority: 100
+
+# SSN masking rule
+- table_name: ".*"
+  column_name: ".*ssn.*|.*social.*security.*"
+  masking_type: "redact"
+  data_category: "pii"
+  description: "Redact Social Security Numbers"
+  priority: 100
+
+# Address masking rule
+- table_name: ".*"
+  column_name: ".*address.*|.*street.*|.*addr.*"
+  masking_type: "custom"
+  data_category: "location"
+  description: "Mask addresses"
+  options:
+    function: "address_masker"
+  priority: 80
+
+# Name masking rule
+- table_name: ".*"
+  column_name: ".*name.*|.*first_name.*|.*last_name.*"
+  masking_type: "custom"
+  data_category: "pii"
+  description: "Mask names"
+  options:
+    function: "name_masker"
+    keep_initials: true
+  priority: 70
+
+# Date of birth masking rule
+- table_name: ".*"
+  column_name: ".*dob.*|.*birth.*date.*|.*birthdate.*"
+  masking_type: "generalize"
+  data_category: "pii"
+  description: "Generalize dates of birth"
+  options:
+    generalize_level: "year"
+  priority: 85
+
+# IP address masking rule
+- table_name: ".*"
+  column_name: ".*ip.*address.*|.*ipaddr.*"
+  masking_type: "custom"
+  data_category: "pii"
+  description: "Mask IP addresses"
+  options:
+    function: "ip_masker"
+    mask_level: 2
+  priority: 90
+
+# Account number masking rule
+- table_name: ".*"
+  column_name: ".*account.*number.*|.*acct.*num.*"
+  masking_type: "partial"
+  data_category: "financial"
+  description: "Mask account numbers"
+  options:
+    start_chars: 0
+    end_chars: 4
+    mask_char: "X"
+  priority: 85
+
+# Username masking rule (lower priority)
+- table_name: ".*"
+  column_name: ".*username.*|.*user_name.*|.*user.*"
+  masking_type: "pseudonymize"
+  data_category: "pii"
+  description: "Pseudonymize usernames"
+  priority: 60

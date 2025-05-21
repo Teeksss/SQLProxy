@@ -1,0 +1,87 @@
+# SQL Proxy Alert Rules for Prometheus
+# Last updated: 2025-05-20 10:10:36
+# Updated by: Teeksss
+
+groups:
+  - name: sql_proxy_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: rate(sql_proxy_query_errors_total[5m]) / rate(sql_proxy_queries_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High SQL query error rate"
+          description: "SQL Proxy has a high error rate: {{ $value | humanizePercentage }} on {{ $labels.instance }}"
+
+      - alert: SlowQueries
+        expr: sql_proxy_query_execution_time_seconds{quantile="0.95"} > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow SQL queries detected"
+          description: "95th percentile of query execution time is {{ $value }} seconds on {{ $labels.instance }}"
+
+      - alert: HighQueryVolume
+        expr: rate(sql_proxy_queries_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High query volume detected"
+          description: "SQL Proxy is processing {{ $value | humanizePerSecond }} queries on {{ $labels.instance }}"
+
+      - alert: LowAvailabilityRatio
+        expr: sql_proxy_up{job="sql_proxy"} < 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SQL Proxy is down"
+          description: "SQL Proxy instance {{ $labels.instance }} is down"
+
+      - alert: HighCPUUsage
+        expr: (1 - avg by(instance)(irate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on SQL Proxy server"
+          description: "SQL Proxy server {{ $labels.instance }} has high CPU usage: {{ $value | humanizePercentage }}"
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on SQL Proxy server"
+          description: "SQL Proxy server {{ $labels.instance }} has high memory usage: {{ $value | humanizePercentage }}"
+
+      - alert: HighPendingApprovals
+        expr: sql_proxy_pending_approvals > 20
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Many pending query approvals"
+          description: "SQL Proxy has {{ $value }} pending query approvals on {{ $labels.instance }}"
+
+      - alert: AbnormalAnomalyRate
+        expr: rate(sql_proxy_anomaly_alerts_total[1h]) > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of anomaly detections"
+          description: "SQL Proxy is detecting {{ $value | humanizePerHour }} anomalies on {{ $labels.instance }}"
+
+      - alert: DatabaseConnectionIssues
+        expr: sql_proxy_db_connection_errors > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection issues detected"
+          description: "SQL Proxy is experiencing database connection issues on {{ $labels.instance }}"

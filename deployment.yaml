@@ -1,0 +1,247 @@
+# Kubernetes Deployment for SQL Proxy
+# Last updated: 2025-05-20 12:00:43
+# Updated by: Teeksss
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-proxy-api
+  namespace: sql-proxy
+  labels:
+    app: sql-proxy
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sql-proxy
+      component: api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: sql-proxy
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/api/v1/metrics/prometheus"
+        prometheus.io/port: "8000"
+    spec:
+      containers:
+      - name: api
+        image: ${ECR_REPOSITORY_URI}/sql-proxy-api:${IMAGE_TAG}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        resources:
+          limits:
+            cpu: "2"
+            memory: "2Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        env:
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-db-secret
+              key: host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-db-secret
+              key: port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-db-secret
+              key: password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-db-secret
+              key: database
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-redis-secret
+              key: host
+        - name: REDIS_PORT
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-redis-secret
+              key: port
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-redis-secret
+              key: password
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-app-secret
+              key: secret_key
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: sql-proxy-app-secret
+              key: sentry_dsn
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: API_BASE_URL
+          value: "https://api.sqlproxy.example.com"
+        - name: CORS_ORIGINS
+          value: "https://app.sqlproxy.example.com"
+        - name: METRICS_ENABLED
+          value: "true"
+        - name: METRICS_PREFIX
+          value: "sql_proxy"
+        volumeMounts:
+        - name: logs
+          mountPath: /app/logs
+        - name: config
+          mountPath: /app/config
+        - name: data
+          mountPath: /app/data
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: logs
+        persistentVolumeClaim:
+          claimName: sql-proxy-logs-pvc
+      - name: config
+        configMap:
+          name: sql-proxy-config
+      - name: data
+        persistentVolumeClaim:
+          claimName: sql-proxy-data-pvc
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 60
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - sql-proxy
+              topologyKey: kubernetes.io/hostname
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql-proxy-api
+  namespace: sql-proxy
+  labels:
+    app: sql-proxy
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: sql-proxy
+    component: api
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sql-proxy-api-ingress
+  namespace: sql-proxy
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    alb.ingress.kubernetes.io/certificate-arn: ${SSL_CERTIFICATE_ARN}
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+spec:
+  rules:
+  - host: api.sqlproxy.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: sql-proxy-api
+            port:
+              number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sql-proxy-api-hpa
+  namespace: sql-proxy
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sql-proxy-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 30
+      - type: Pods
+        value: 4
+        periodSeconds: 60
+      selectPolicy: Max

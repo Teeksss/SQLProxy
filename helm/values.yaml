@@ -1,0 +1,216 @@
+# SQL Proxy Helm Chart Values
+# Last updated: 2025-05-20 12:00:43
+# Updated by: Teeksss
+
+# Global settings
+global:
+  environment: production
+  region: us-west-2
+  domain: sqlproxy.example.com
+  imageRegistry: 123456789012.dkr.ecr.us-west-2.amazonaws.com
+
+# API service configuration
+api:
+  name: sql-proxy-api
+  image:
+    repository: sql-proxy-api
+    tag: latest
+    pullPolicy: Always
+  replicas:
+    min: 2
+    max: 10
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8000
+  ingress:
+    enabled: true
+    class: alb
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+    hosts:
+      - host: api.sqlproxy.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: sql-proxy-tls
+        hosts:
+          - api.sqlproxy.example.com
+  config:
+    logLevel: INFO
+    apiBaseUrl: https://api.sqlproxy.example.com
+    corsOrigins: https://app.sqlproxy.example.com
+    metricsEnabled: true
+    metricsPrefix: sql_proxy
+  livenessProbe:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  persistence:
+    logs:
+      enabled: true
+      size: 10Gi
+      storageClass: gp2
+    data:
+      enabled: true
+      size: 20Gi
+      storageClass: gp2
+
+# Frontend service configuration
+frontend:
+  name: sql-proxy-frontend
+  image:
+    repository: sql-proxy-frontend
+    tag: latest
+    pullPolicy: Always
+  replicas: 2
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 80
+  ingress:
+    enabled: true
+    class: alb
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+    hosts:
+      - host: app.sqlproxy.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: sql-proxy-frontend-tls
+        hosts:
+          - app.sqlproxy.example.com
+
+# Database configuration
+postgresql:
+  enabled: true
+  postgresqlUsername: postgres
+  existingSecret: sql-proxy-db-secret
+  existingSecretKey: password
+  postgresqlDatabase: sqlproxy
+  persistence:
+    enabled: true
+    size: 50Gi
+    storageClass: gp2
+  resources:
+    limits:
+      cpu: 1
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    existingSecret: sql-proxy-redis-secret
+    existingSecretPasswordKey: password
+  architecture: standalone
+  master:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+# Monitoring configuration
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    selector:
+      release: monitoring
+
+grafana:
+  enabled: true
+  adminPassword: admin
+  dashboards:
+    default:
+      sql-proxy-overview:
+        json: |
+          {{ .Files.Get "dashboards/sql_proxy_overview.json" | indent 10 }}
+  persistence:
+    enabled: true
+    size: 10Gi
+  ingress:
+    enabled: true
+    hosts:
+      - monitoring.sqlproxy.example.com
+    tls:
+      - secretName: sql-proxy-grafana-tls
+        hosts:
+          - monitoring.sqlproxy.example.com
+
+# Secrets configuration
+secrets:
+  create: true
+  dbSecret:
+    name: sql-proxy-db-secret
+    host: postgresql.sql-proxy.svc.cluster.local
+    port: "5432"
+    username: postgres
+    # Use existing secret for password
+  redisSecret:
+    name: sql-proxy-redis-secret
+    host: redis-master.sql-proxy.svc.cluster.local
+    port: "6379"
+    # Use existing secret for password
+  appSecret:
+    name: sql-proxy-app-secret
+    # Use existing secret for secret_key and sentry_dsn
+
+# Son güncelleme: 2025-05-20 12:00:43
+# Güncelleyen: Teeksss

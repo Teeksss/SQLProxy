@@ -1,0 +1,370 @@
+# Default values for SQL Proxy Helm chart
+# This is a YAML-formatted file.
+
+# Global settings
+global:
+  # Environment name (dev, staging, prod)
+  environment: dev
+  
+  # Database settings for SQL Proxy's own metadata
+  database:
+    host: postgres
+    port: 5432
+    name: sqlproxy
+    user: sqlproxy
+    # Note: Password should be provided through secrets or external values
+    existingSecret: sqlproxy-db-credentials
+    existingSecretKey: password
+
+  # Redis settings for caching and session management
+  redis:
+    host: redis
+    port: 6379
+    # Note: Password should be provided through secrets or external values
+    existingSecret: sqlproxy-redis-credentials
+    existingSecretKey: password
+    
+  # Common image settings
+  image:
+    registry: sqldocker.example.com
+    tag: latest
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+
+# API server settings
+api:
+  enabled: true
+  
+  # Replica count
+  replicaCount: 2
+  
+  # Image settings (overrides global if set)
+  image:
+    repository: sql-proxy-api
+    # tag: Override global tag if needed
+    # pullPolicy: Override global pullPolicy if needed
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Pod security context
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  
+  # Service settings
+  service:
+    type: ClusterIP
+    port: 8000
+    annotations: {}
+  
+  # Autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity: {}
+  
+  # Extra environment variables
+  env:
+    - name: LOG_LEVEL
+      value: "INFO"
+  
+  # Health check settings
+  healthCheck:
+    liveness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# Worker settings (for background tasks)
+worker:
+  enabled: true
+  
+  # Replica count
+  replicaCount: 2
+  
+  # Image settings (same as API by default)
+  image:
+    repository: sql-proxy-worker
+    # tag: Override global tag if needed
+    # pullPolicy: Override global pullPolicy if needed
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
+  # Pod security context
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  
+  # Autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity: {}
+  
+  # Extra environment variables
+  env:
+    - name: LOG_LEVEL
+      value: "INFO"
+  
+  # Health check settings
+  healthCheck:
+    liveness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# Web UI settings
+webui:
+  enabled: true
+  
+  # Replica count
+  replicaCount: 2
+  
+  # Image settings
+  image:
+    repository: sql-proxy-webui
+    # tag: Override global tag if needed
+    # pullPolicy: Override global pullPolicy if needed
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+  
+  # Pod security context
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+  
+  # Service settings
+  service:
+    type: ClusterIP
+    port: 80
+    annotations: {}
+  
+  # Autoscaling
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity: {}
+  
+  # Health check settings
+  healthCheck:
+    liveness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+
+# PostgreSQL settings (for internal metadata)
+postgresql:
+  enabled: true
+  
+  # Postgres settings
+  postgresqlUsername: sqlproxy
+  postgresqlDatabase: sqlproxy
+  # postgresqlPassword is set via existingSecret
+  
+  # Persistence settings
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+  
+  # Resource allocation
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Redis settings (for caching and session management)
+redis:
+  enabled: true
+  
+  # Redis settings
+  architecture: standalone
+  auth:
+    enabled: true
+    existingSecret: sqlproxy-redis-credentials
+    existingSecretPasswordKey: password
+  
+  # Persistence settings
+  master:
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 8Gi
+  
+  # Resource allocation
+  master:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Ingress configuration
+ingress:
+  enabled: true
+  
+  # Ingress class
+  className: "nginx"
+  
+  # Annotations
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  
+  # Hosts configuration
+  hosts:
+    - host: sqlproxy.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: sql-proxy-api
+              port:
+                number: 8000
+    - host: ui.sqlproxy.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: sql-proxy-webui
+              port:
+                number: 80
+  
+  # TLS settings
+  tls:
+    - secretName: sqlproxy-tls-cert
+      hosts:
+        - sqlproxy.example.com
+        - ui.sqlproxy.example.com
+
+# Backup settings
+backup:
+  enabled: true
+  
+  # Schedule using cron syntax
+  schedule: "0 1 * * *"  # Daily at 1:00 AM
+  
+  # Retention settings
+  retention:
+    days: 7
+    keepLast: 7
+  
+  # Storage settings
+  storage:
+    type: s3  # s3, gcs, azure, or local
+    bucket: sqlproxy-backups
+    path: backups
+    existingSecret: sqlproxy-backup-credentials
+  
+  # Resources
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Monitoring settings
+monitoring:
+  # Prometheus configuration
+  prometheus:
+    enabled: true
+    scrapeInterval: 30s
+  
+  # Grafana configuration
+  grafana:
+    enabled: true
+    adminPassword: 
+      existingSecret: sqlproxy-grafana-credentials
+      existingSecretKey: admin-password
+    persistence:
+      enabled: true
+      size: 5Gi
+    
+  # Custom dashboards
+  dashboards:
+    sqlproxy:
+      enabled: true

@@ -1,0 +1,247 @@
+{
+  "language_name": "Türkçe",
+  
+  "common": {
+    "ok": "Tamam",
+    "cancel": "İptal",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "add": "Ekle",
+    "search": "Ara",
+    "filter": "Filtrele",
+    "refresh": "Yenile",
+    "loading": "Yükleniyor...",
+    "no_results": "Sonuç bulunamadı",
+    "yes": "Evet",
+    "no": "Hayır",
+    "confirm": "Onayla",
+    "success": "Başarılı",
+    "error": "Hata",
+    "warning": "Uyarı",
+    "info": "Bilgi"
+  },
+  
+  "login": {
+    "title": "SQL Proxy'ye Giriş",
+    "username": "Kullanıcı adı",
+    "password": "Şifre",
+    "login_button": "Giriş",
+    "forgot_password": "Şifremi Unuttum?",
+    "login_failed": "Giriş başarısız. Lütfen bilgilerinizi kontrol edin.",
+    "login_success": "Giriş başarılı.",
+    "logout": "Çıkış",
+    "logout_success": "Başarıyla çıkış yaptınız."
+  },
+  
+  "dashboard": {
+    "title": "Pano",
+    "welcome": "Hoş geldin, {username}!",
+    "active_queries": "Aktif Sorgular",
+    "query_history": "Sorgu Geçmişi",
+    "servers": "Sunucular",
+    "system_status": "Sistem Durumu",
+    "recent_activity": "Son Aktiviteler",
+    "query_count": "Sorgu Sayısı",
+    "error_rate": "Hata Oranı",
+    "execution_time": "Çalışma Süresi"
+  },
+  
+  "query": {
+    "execute": "Çalıştır",
+    "cancel": "İptal",
+    "save": "Sorguyu Kaydet",
+    "load": "Sorgu Yükle",
+    "history": "Geçmiş",
+    "results": "Sonuçlar",
+    "error": "Hata",
+    "success": "Başarılı",
+    "execution_time": "Çalışma Süresi: {time} ms",
+    "rows_affected": "Etkilenen Satır: {count}",
+    "rows_returned": "Dönen Satır: {count}",
+    "query_type": "Sorgu Tipi: {type}",
+    "query_approved": "Sorgu onaylandı.",
+    "query_rejected": "Sorgu reddedildi: {reason}",
+    "query_pending": "Sorgu onay bekliyor.",
+    "select_server": "Sunucu Seç",
+    "timeout": "Sorgu {seconds} saniye sonra zaman aşımına uğradı.",
+    "export_data": "Veriyi Dışa Aktar"
+  },
+  
+  "server": {
+    "add_new": "Yeni Sunucu Ekle",
+    "edit": "Sunucuyu Düzenle",
+    "delete": "Sunucuyu Sil",
+    "name": "Sunucu Adı",
+    "alias": "Sunucu Takma Adı",
+    "host": "Sunucu Adresi",
+    "port": "Port",
+    "database": "Veritabanı",
+    "username": "Kullanıcı Adı",
+    "password": "Şifre",
+    "status": "Durum",
+    "type": "Veritabanı Tipi",
+    "connection_pool": "Bağlantı Havuzu",
+    "max_connections": "Maksimum Bağlantı",
+    "test_connection": "Bağlantıyı Test Et",
+    "test_success": "Bağlantı testi başarılı.",
+    "test_failed": "Bağlantı testi başarısız: {message}",
+    "active": "Aktif",
+    "inactive": "Pasif",
+    "read_only": "Salt Okunur"
+  },
+  
+  "whitelist": {
+    "title": "Sorgu Beyaz Listesi",
+    "add_new": "Yeni Beyaz Liste Girişi Ekle",
+    "edit": "Beyaz Liste Girişini Düzenle",
+    "delete": "Beyaz Liste Girişini Sil",
+    "query": "Sorgu",
+    "description": "Açıklama",
+    "added_by": "Ekleyen",
+    "added_at": "Eklenme Tarihi",
+    "last_used": "Son Kullanım",
+    "use_count": "Kullanım Sayısı",
+    "active": "Aktif",
+    "inactive": "Pasif",
+    "similar_queries": "Benzer Sorgular",
+    "similarity_score": "Benzerlik Puanı: %{score}"
+  },
+  
+  "users": {
+    "title": "Kullanıcı Yönetimi",
+    "add_new": "Yeni Kullanıcı Ekle",
+    "edit": "Kullanıcıyı Düzenle",
+    "delete": "Kullanıcıyı Sil",
+    "username": "Kullanıcı Adı",
+    "email": "E-posta",
+    "role": "Rol",
+    "last_login": "Son Giriş",
+    "status": "Durum",
+    "active": "Aktif",
+    "inactive": "Pasif",
+    "locked": "Kilitli",
+    "reset_password": "Şifreyi Sıfırla",
+    "password_reset_success": "Şifre başarıyla sıfırlandı."
+  },
+  
+  "roles": {
+    "admin": "Yönetici",
+    "analyst": "Analist",
+    "readonly": "Salt Okunur",
+    "powerbi": "Power BI"
+  },
+  
+  "settings": {
+    "title": "Ayarlar",
+    "general": "Genel",
+    "security": "Güvenlik",
+    "appearance": "Görünüm",
+    "language": "Dil",
+    "theme": "Tema",
+    "timeout": "Sorgu Zaman Aşımı",
+    "max_results": "Maksimum Sonuç",
+    "save_success": "Ayarlar başarıyla kaydedildi.",
+    "save_error": "Ayarlar kaydedilirken hata oluştu: {message}"
+  },
+  
+  "approvals": {
+    "title": "Sorgu Onayları",
+    "pending": "Bekleyen Onaylar",
+    "approved": "Onaylanan Sorgular",
+    "rejected": "Reddedilen Sorgular",
+    "approve": "Onayla",
+    "reject": "Reddet",
+    "reason": "Neden",
+    "requester": "İsteyen",
+    "requested_at": "İstek Tarihi",
+    "approver": "Onaylayan",
+    "approved_at": "Onay Tarihi",
+    "rejected_at": "Red Tarihi",
+    "rejection_reason": "Red Nedeni",
+    "query_details": "Sorgu Detayları",
+    "approve_success": "Sorgu başarıyla onaylandı.",
+    "reject_success": "Sorgu başarıyla reddedildi."
+  },
+  
+  "audit": {
+    "title": "Denetim Kayıtları",
+    "user": "Kullanıcı",
+    "action": "İşlem",
+    "timestamp": "Zaman",
+    "target": "Hedef",
+    "details": "Detaylar",
+    "ip_address": "IP Adresi",
+    "success": "Başarılı",
+    "error": "Hata",
+    "filter_by_user": "Kullanıcıya Göre Filtrele",
+    "filter_by_action": "İşleme Göre Filtrele",
+    "filter_by_date": "Tarihe Göre Filtrele"
+  },
+  
+  "api_keys": {
+    "title": "API Anahtarları",
+    "add_new": "Yeni API Anahtarı Ekle",
+    "edit": "API Anahtarını Düzenle",
+    "delete": "API Anahtarını İptal Et",
+    "name": "Anahtar Adı",
+    "key": "API Anahtarı",
+    "created_at": "Oluşturulma Tarihi",
+    "expires_at": "Geçerlilik Sonu",
+    "status": "Durum",
+    "active": "Aktif",
+    "inactive": "Pasif",
+    "revoked": "İptal Edildi",
+    "copy_key": "Anahtarı Kopyala",
+    "note": "Not: Bu anahtarı sadece bir kez göreceksiniz. Lütfen şimdi kopyalayın.",
+    "revoke_confirm": "Bu API anahtarını iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "revoke_success": "API anahtarı başarıyla iptal edildi."
+  },
+  
+  "anomalies": {
+    "title": "Anomali Tespiti",
+    "detected": "Tespit Edilen Anomaliler",
+    "type": "Anomali Tipi",
+    "severity": "Önem Derecesi",
+    "detected_at": "Tespit Tarihi",
+    "status": "Durum",
+    "details": "Detaylar",
+    "resolve": "Çöz",
+    "acknowledge": "Bildir",
+    "open": "Açık",
+    "acknowledged": "Bildirildi",
+    "resolved": "Çözüldü",
+    "false_positive": "Yanlış Alarm",
+    "resolve_success": "Anomali başarıyla çözüldü.",
+    "acknowledge_success": "Anomali başarıyla bildirildi."
+  },
+  
+  "distributed": {
+    "title": "Dağıtık Sorgular",
+    "server_groups": "Sunucu Grupları",
+    "add_group": "Sunucu Grubu Ekle",
+    "edit_group": "Sunucu Grubunu Düzenle",
+    "delete_group": "Sunucu Grubunu Sil",
+    "group_name": "Grup Adı",
+    "group_type": "Grup Tipi",
+    "servers": "Sunucular",
+    "active_queries": "Aktif Dağıtık Sorgular",
+    "query_id": "Sorgu ID",
+    "status": "Durum",
+    "duration": "Süre",
+    "server_status": "Sunucu Durumu"
+  },
+  
+  "errors": {
+    "general": "Bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
+    "not_found": "Kaynak bulunamadı.",
+    "permission_denied": "İzin reddedildi.",
+    "database_error": "Veritabanı hatası: {message}",
+    "validation_error": "Doğrulama hatası: {message}",
+    "authentication_required": "Kimlik doğrulama gerekli.",
+    "session_expired": "Oturumunuz sona erdi. Lütfen tekrar giriş yapın.",
+    "server_error": "Sunucu hatası: {message}",
+    "timeout": "İstek zaman aşımına uğradı. Lütfen tekrar deneyin.",
+    "network_error": "Ağ hatası. Lütfen bağlantınızı kontrol edin."
+  }
+}

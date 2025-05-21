@@ -1,0 +1,247 @@
+{
+  "language_name": "English",
+  
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "no_results": "No results found",
+    "yes": "Yes",
+    "no": "No",
+    "confirm": "Confirm",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  
+  "login": {
+    "title": "Login to SQL Proxy",
+    "username": "Username",
+    "password": "Password",
+    "login_button": "Login",
+    "forgot_password": "Forgot Password?",
+    "login_failed": "Login failed. Please check your credentials.",
+    "login_success": "Login successful.",
+    "logout": "Logout",
+    "logout_success": "You have been logged out successfully."
+  },
+  
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome, {username}!",
+    "active_queries": "Active Queries",
+    "query_history": "Query History",
+    "servers": "Servers",
+    "system_status": "System Status",
+    "recent_activity": "Recent Activity",
+    "query_count": "Query Count",
+    "error_rate": "Error Rate",
+    "execution_time": "Execution Time"
+  },
+  
+  "query": {
+    "execute": "Execute",
+    "cancel": "Cancel",
+    "save": "Save Query",
+    "load": "Load Query",
+    "history": "History",
+    "results": "Results",
+    "error": "Error",
+    "success": "Success",
+    "execution_time": "Execution Time: {time} ms",
+    "rows_affected": "Rows Affected: {count}",
+    "rows_returned": "Rows Returned: {count}",
+    "query_type": "Query Type: {type}",
+    "query_approved": "Query has been approved.",
+    "query_rejected": "Query has been rejected: {reason}",
+    "query_pending": "Query is pending approval.",
+    "select_server": "Select Server",
+    "timeout": "Query timed out after {seconds} seconds.",
+    "export_data": "Export Data"
+  },
+  
+  "server": {
+    "add_new": "Add New Server",
+    "edit": "Edit Server",
+    "delete": "Delete Server",
+    "name": "Server Name",
+    "alias": "Server Alias",
+    "host": "Host",
+    "port": "Port",
+    "database": "Database",
+    "username": "Username",
+    "password": "Password",
+    "status": "Status",
+    "type": "Database Type",
+    "connection_pool": "Connection Pool",
+    "max_connections": "Max Connections",
+    "test_connection": "Test Connection",
+    "test_success": "Connection test successful.",
+    "test_failed": "Connection test failed: {message}",
+    "active": "Active",
+    "inactive": "Inactive",
+    "read_only": "Read Only"
+  },
+  
+  "whitelist": {
+    "title": "Query Whitelist",
+    "add_new": "Add New Whitelist Entry",
+    "edit": "Edit Whitelist Entry",
+    "delete": "Delete Whitelist Entry",
+    "query": "Query",
+    "description": "Description",
+    "added_by": "Added By",
+    "added_at": "Added At",
+    "last_used": "Last Used",
+    "use_count": "Use Count",
+    "active": "Active",
+    "inactive": "Inactive",
+    "similar_queries": "Similar Queries",
+    "similarity_score": "Similarity Score: {score}%"
+  },
+  
+  "users": {
+    "title": "User Management",
+    "add_new": "Add New User",
+    "edit": "Edit User",
+    "delete": "Delete User",
+    "username": "Username",
+    "email": "Email",
+    "role": "Role",
+    "last_login": "Last Login",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "locked": "Locked",
+    "reset_password": "Reset Password",
+    "password_reset_success": "Password reset successfully."
+  },
+  
+  "roles": {
+    "admin": "Administrator",
+    "analyst": "Analyst",
+    "readonly": "Read Only",
+    "powerbi": "Power BI"
+  },
+  
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "security": "Security",
+    "appearance": "Appearance",
+    "language": "Language",
+    "theme": "Theme",
+    "timeout": "Query Timeout",
+    "max_results": "Maximum Results",
+    "save_success": "Settings saved successfully.",
+    "save_error": "Error saving settings: {message}"
+  },
+  
+  "approvals": {
+    "title": "Query Approvals",
+    "pending": "Pending Approvals",
+    "approved": "Approved Queries",
+    "rejected": "Rejected Queries",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reason": "Reason",
+    "requester": "Requester",
+    "requested_at": "Requested At",
+    "approver": "Approver",
+    "approved_at": "Approved At",
+    "rejected_at": "Rejected At",
+    "rejection_reason": "Rejection Reason",
+    "query_details": "Query Details",
+    "approve_success": "Query approved successfully.",
+    "reject_success": "Query rejected successfully."
+  },
+  
+  "audit": {
+    "title": "Audit Logs",
+    "user": "User",
+    "action": "Action",
+    "timestamp": "Timestamp",
+    "target": "Target",
+    "details": "Details",
+    "ip_address": "IP Address",
+    "success": "Success",
+    "error": "Error",
+    "filter_by_user": "Filter by User",
+    "filter_by_action": "Filter by Action",
+    "filter_by_date": "Filter by Date"
+  },
+  
+  "api_keys": {
+    "title": "API Keys",
+    "add_new": "Add New API Key",
+    "edit": "Edit API Key",
+    "delete": "Revoke API Key",
+    "name": "Key Name",
+    "key": "API Key",
+    "created_at": "Created At",
+    "expires_at": "Expires At",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "revoked": "Revoked",
+    "copy_key": "Copy Key",
+    "note": "Note: You will only see this key once. Please copy it now.",
+    "revoke_confirm": "Are you sure you want to revoke this API key? This action cannot be undone.",
+    "revoke_success": "API key revoked successfully."
+  },
+  
+  "anomalies": {
+    "title": "Anomaly Detection",
+    "detected": "Detected Anomalies",
+    "type": "Anomaly Type",
+    "severity": "Severity",
+    "detected_at": "Detected At",
+    "status": "Status",
+    "details": "Details",
+    "resolve": "Resolve",
+    "acknowledge": "Acknowledge",
+    "open": "Open",
+    "acknowledged": "Acknowledged",
+    "resolved": "Resolved",
+    "false_positive": "False Positive",
+    "resolve_success": "Anomaly resolved successfully.",
+    "acknowledge_success": "Anomaly acknowledged successfully."
+  },
+  
+  "distributed": {
+    "title": "Distributed Queries",
+    "server_groups": "Server Groups",
+    "add_group": "Add Server Group",
+    "edit_group": "Edit Server Group",
+    "delete_group": "Delete Server Group",
+    "group_name": "Group Name",
+    "group_type": "Group Type",
+    "servers": "Servers",
+    "active_queries": "Active Distributed Queries",
+    "query_id": "Query ID",
+    "status": "Status",
+    "duration": "Duration",
+    "server_status": "Server Status"
+  },
+  
+  "errors": {
+    "general": "An error occurred. Please try again later.",
+    "not_found": "Resource not found.",
+    "permission_denied": "Permission denied.",
+    "database_error": "Database error: {message}",
+    "validation_error": "Validation error: {message}",
+    "authentication_required": "Authentication required.",
+    "session_expired": "Your session has expired. Please log in again.",
+    "server_error": "Server error: {message}",
+    "timeout": "Request timed out. Please try again later.",
+    "network_error": "Network error. Please check your connection."
+  }
+}

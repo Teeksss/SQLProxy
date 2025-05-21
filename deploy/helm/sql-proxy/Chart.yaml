@@ -1,0 +1,9 @@
+apiVersion: v2
+name: sql-proxy
+description: Helm chart for SQL Proxy - A secure SQL proxy system
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Teeksss
+    email: admin@example.com

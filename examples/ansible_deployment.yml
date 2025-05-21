@@ -1,0 +1,239 @@
+---
+# SQL Proxy Deployment with Ansible
+# Last updated: 2025-05-20 10:10:36
+# Updated by: Teeksss
+
+- name: Deploy SQL Proxy
+  hosts: sql_proxy_servers
+  become: true
+  vars:
+    sql_proxy_version: "1.5.0"
+    deployment_env: "{{ env | default('production') }}"
+    app_user: "sqlproxy"
+    app_group: "sqlproxy"
+    app_home: "/opt/sqlproxy"
+    app_config_dir: "/etc/sqlproxy"
+    app_log_dir: "/var/log/sqlproxy"
+    app_data_dir: "/var/lib/sqlproxy"
+    python_version: "3.10"
+    enable_monitoring: true
+    enable_ssl: true
+    postgres_version: "15"
+    backup_enabled: true
+    backup_retention_days: 30
+    firewall_allowed_ips:
+      - "10.0.0.0/8"  # Internal network
+      - "192.168.0.0/16"  # VPN network
+  
+  tasks:
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        system: yes
+        createhome: yes
+        home: "{{ app_home }}"
+        shell: /bin/bash
+        state: present
+    
+    - name: Create application directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: 0755
+      loop:
+        - "{{ app_home }}"
+        - "{{ app_config_dir }}"
+        - "{{ app_log_dir }}"
+        - "{{ app_data_dir }}"
+        - "{{ app_home }}/backups"
+        - "{{ app_home }}/scripts"
+        - "{{ app_home }}/releases"
+        - "{{ app_home }}/ssl"
+    
+    - name: Install system dependencies
+      apt:
+        name:
+          - build-essential
+          - curl
+          - git
+          - nginx
+          - supervisor
+          - python{{ python_version }}
+          - python{{ python_version }}-dev
+          - python{{ python_version }}-venv
+          - postgresql-{{ postgres_version }}
+          - postgresql-contrib-{{ postgres_version }}
+          - libpq-dev
+          - certbot
+          - python3-certbot-nginx
+          - prometheus-node-exporter
+        state: present
+        update_cache: yes
+    
+    - name: Clone SQL Proxy repository
+      git:
+        repo: "https://github.com/company/sqlproxy.git"
+        dest: "{{ app_home }}/releases/{{ sql_proxy_version }}"
+        version: "v{{ sql_proxy_version }}"
+      become_user: "{{ app_user }}"
+      
+    - name: Create Python virtual environment
+      command:
+        cmd: "python{{ python_version }} -m venv {{ app_home }}/venv"
+        creates: "{{ app_home }}/venv/bin/python"
+      become_user: "{{ app_user }}"
+    
+    - name: Install Python packages
+      pip:
+        requirements: "{{ app_home }}/releases/{{ sql_proxy_version }}/requirements/{{ deployment_env }}.txt"
+        virtualenv: "{{ app_home }}/venv"
+        virtualenv_python: "python{{ python_version }}"
+      become_user: "{{ app_user }}"
+    
+    - name: Create symbolic link to current release
+      file:
+        src: "{{ app_home }}/releases/{{ sql_proxy_version }}"
+        dest: "{{ app_home }}/current"
+        state: link
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+    
+    - name: Copy config files
+      template:
+        src: "templates/{{ item }}.j2"
+        dest: "{{ app_config_dir }}/{{ item }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: 0640
+      loop:
+        - "settings.yaml"
+        - "servers.yaml"
+        - "users.yaml"
+        - "policies.yaml"
+    
+    - name: Initialize PostgreSQL database
+      command:
+        cmd: "{{ app_home }}/venv/bin/python {{ app_home }}/current/scripts/init_db.py --config {{ app_config_dir }}/settings.yaml"
+      become_user: "{{ app_user }}"
+      args:
+        creates: "{{ app_data_dir }}/.db_initialized"
+    
+    - name: Configure Nginx
+      template:
+        src: templates/nginx_sqlproxy.conf.j2
+        dest: /etc/nginx/sites-available/sqlproxy.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify: Restart Nginx
+    
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/sqlproxy.conf
+        dest: /etc/nginx/sites-enabled/sqlproxy.conf
+        state: link
+      notify: Restart Nginx
+    
+    - name: Configure Supervisor
+      template:
+        src: templates/supervisor_sqlproxy.conf.j2
+        dest: /etc/supervisor/conf.d/sqlproxy.conf
+        owner: root
+        group: root
+        mode: 0644
+      notify: Restart Supervisor
+    
+    - name: Setup Prometheus metrics exporter
+      template:
+        src: templates/prometheus_exporter.service.j2
+        dest: /etc/systemd/system/sqlproxy-exporter.service
+        owner: root
+        group: root
+        mode: 0644
+      when: enable_monitoring
+      notify: Restart metrics exporter
+    
+    - name: Create backup script
+      template:
+        src: templates/backup.sh.j2
+        dest: "{{ app_home }}/scripts/backup.sh"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: 0750
+      when: backup_enabled
+    
+    - name: Setup backup cron job
+      cron:
+        name: "SQL Proxy Backup"
+        user: "{{ app_user }}"
+        minute: "0"
+        hour: "1"
+        job: "{{ app_home }}/scripts/backup.sh > {{ app_log_dir }}/backup.log 2>&1"
+      when: backup_enabled
+    
+    - name: Configure firewall
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - 80
+        - 443
+        - 8000  # API port
+        - 9100  # Prometheus node exporter
+    
+    - name: Configure firewall IP restrictions
+      ufw:
+        rule: allow
+        port: 8000
+        proto: tcp
+        src: "{{ item }}"
+      loop: "{{ firewall_allowed_ips }}"
+    
+    - name: Enable firewall
+      ufw:
+        state: enabled
+        policy: deny
+    
+    - name: Generate SSL certificates with Let's Encrypt
+      command:
+        cmd: >
+          certbot --nginx -d {{ inventory_hostname }} -d api.{{ inventory_hostname }}
+          --non-interactive --agree-tos --email {{ certbot_email }}
+      args:
+        creates: /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem
+      when: enable_ssl
+      vars:
+        certbot_email: "devops@example.com"
+    
+    - name: Start services
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - supervisor
+        - nginx
+        - prometheus-node-exporter
+        - sqlproxy-exporter
+      when: item != 'sqlproxy-exporter' or enable_monitoring
+  
+  handlers:
+    - name: Restart Nginx
+      systemd:
+        name: nginx
+        state: restarted
+    
+    - name: Restart Supervisor
+      systemd:
+        name: supervisor
+        state: restarted
+    
+    - name: Restart metrics exporter
+      systemd:
+        name: sqlproxy-exporter
+        state: restarted
+      when: enable_monitoring

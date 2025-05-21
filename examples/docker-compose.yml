@@ -1,0 +1,225 @@
+# SQL Proxy Docker Compose Configuration
+# Last updated: 2025-05-20 10:10:36
+# Updated by: Teeksss
+
+version: '3.8'
+
+services:
+  # SQL Proxy API Service
+  api:
+    image: company/sqlproxy:1.5.0
+    container_name: sqlproxy-api
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./data:/app/data
+    environment:
+      - SQLPROXY_ENV=production
+      - SQLPROXY_CONFIG=/app/config/settings.yaml
+      - POSTGRES_DSN=postgresql://sqlproxy:${DB_PASSWORD}@db:5432/sqlproxy
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=*
+      - LOG_LEVEL=INFO
+      - ENABLE_MONITORING=true
+    networks:
+      - sqlproxy-network
+    ports:
+      - "8000:8000"  # API port
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  # Worker for background tasks
+  worker:
+    image: company/sqlproxy:1.5.0
+    container_name: sqlproxy-worker
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+      - ./data:/app/data
+    command: ["python", "-m", "app.worker"]
+    environment:
+      - SQLPROXY_ENV=production
+      - SQLPROXY_CONFIG=/app/config/settings.yaml
+      - POSTGRES_DSN=postgresql://sqlproxy:${DB_PASSWORD}@db:5432/sqlproxy
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY}
+      - LOG_LEVEL=INFO
+    networks:
+      - sqlproxy-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: sqlproxy-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=sqlproxy
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=sqlproxy
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - sqlproxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sqlproxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  # Redis for caching and message broker
+  redis:
+    image: redis:6-alpine
+    container_name: sqlproxy-redis
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+    networks:
+      - sqlproxy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+
+  # Web UI Nginx server
+  webui:
+    image: company/sqlproxy-ui:1.5.0
+    container_name: sqlproxy-webui
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - sqlproxy-network
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    container_name: sqlproxy-prometheus
+    restart: unless-stopped
+    depends_on:
+      - api
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - sqlproxy-network
+    ports:
+      - "9090:9090"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:9.4.7
+    container_name: sqlproxy-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.example.com
+    networks:
+      - sqlproxy-network
+    ports:
+      - "3000:3000"
+
+  # Alert Manager for alerting
+  alertmanager:
+    image: prom/alertmanager:v0.25.0
+    container_name: sqlproxy-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - sqlproxy-network
+    ports:
+      - "9093:9093"
+
+  # Database backups
+  backup:
+    image: postgres:15-alpine
+    container_name: sqlproxy-backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+    environment:
+      - POSTGRES_USER=sqlproxy
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=sqlproxy
+      - POSTGRES_HOST=db
+      - BACKUP_RETENTION_DAYS=30
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["crond -f -l 8 && echo '0 1 * * * /backup.sh' | crontab -"]
+    networks:
+      - sqlproxy-network
+
+networks:
+  sqlproxy-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  prometheus-data:
+  grafana-data:

@@ -1,0 +1,73 @@
+# SQL Proxy Sunucu Erişim İzinleri
+# Bu dosya her sunucuya hangi rollerin erişebileceğini tanımlar
+
+servers:
+  - alias: prod_finance
+    description: "Finance Production Database"
+    host: finance-prod.example.com
+    port: 1433
+    database: finance_prod
+    allowed_roles:
+      - admin
+      - analyst
+      - powerbi
+    metadata:
+      owner: "Finance Team"
+      contact_email: "finance-dba@example.com"
+      tier: "production"
+
+  - alias: prod_hr
+    description: "HR Production Database"
+    host: hr-prod.example.com
+    port: 1433
+    database: hr_prod
+    allowed_roles:
+      - admin
+      - analyst
+    metadata:
+      owner: "HR Team"
+      contact_email: "hr-dba@example.com"
+      tier: "production"
+
+  - alias: prod_sales
+    description: "Sales Production Database"
+    host: sales-prod.example.com
+    port: 1433
+    database: sales_prod
+    allowed_roles:
+      - admin
+      - analyst
+      - powerbi
+    metadata:
+      owner: "Sales Team"
+      contact_email: "sales-dba@example.com"
+      tier: "production"
+
+  - alias: reporting_dw
+    description: "Reporting Data Warehouse"
+    host: reporting-dw.example.com
+    port: 1433
+    database: reporting_dw
+    allowed_roles:
+      - admin
+      - analyst
+      - powerbi
+      - readonly
+    metadata:
+      owner: "BI Team"
+      contact_email: "bi-team@example.com"
+      tier: "reporting"
+
+  - alias: dev_sandbox
+    description: "Development Sandbox"
+    host: dev-sandbox.example.com
+    port: 1433
+    database: dev_sandbox
+    allowed_roles:
+      - admin
+      - analyst
+    metadata:
+      owner: "DevOps Team"
+      contact_email: "devops@example.com"
+      tier: "development"
+      auto_approve_queries: true
