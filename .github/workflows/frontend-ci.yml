@@ -1,0 +1,51 @@
+name: Frontend CI (Node.js)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+jobs:
+  build_and_test_frontend:
+    name: Build, Lint, and Test Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend # Default to frontend directory
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18' # Specify your project's Node.js version, e.g., 16, 18, 20
+        cache: 'npm' # Or 'yarn' if you use yarn
+        cache-dependency-path: frontend/package-lock.json # Or frontend/yarn.lock
+
+    - name: Install dependencies
+      run: npm ci # 'npm ci' is generally recommended for CI for cleaner installs, or 'yarn install --frozen-lockfile'
+
+    - name: Lint code
+      run: npm run lint # Assumes you have a "lint" script in frontend/package.json
+
+    - name: Run tests
+      run: npm run test # Assumes you have a "test" script in frontend/package.json
+
+    - name: Build application
+      run: npm run build # Assumes you have a "build" script in frontend/package.json
+
+    # Optional: Archive production artifacts
+    # This can be useful if you need to deploy these assets later or inspect them.
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: frontend/dist # Adjust path to your build output directory (e.g., frontend/build, frontend/.next)
