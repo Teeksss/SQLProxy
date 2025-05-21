@@ -1,0 +1,50 @@
+name: CD - Deploy to Kubernetes using Helm
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on version tags, same as backend image push
+    paths: # Also consider changes to Helm chart itself, though tag is primary driver
+      - 'deploy/helm/**'
+      - '.github/workflows/cd-helm-deploy.yml'
+
+jobs:
+  deploy_to_kubernetes:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    # Add environment for deployment if you use GitHub Environments for protection rules
+    # environment: production
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Kubeconfig
+      uses: azure/k8s-actions/aks-set-context@v1 # Generic, works for any K8s
+      with:
+        kubeconfig: ${{ secrets.KUBECONFIG_DATA }} # Secret containing your Kubeconfig data
+      id: kubeconfig
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: 'v3.x' # Specify Helm 3 version, or latest stable
+      id: helm
+
+    - name: Get the version from the tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Deploy with Helm
+      run: |
+        helm upgrade --install sqlproxy \
+          ./deploy/helm/sqlproxy \ # Path to your Helm chart
+          --namespace your-namespace \ # Replace with your target Kubernetes namespace
+          --create-namespace \
+          --set image.repository=ghcr.io/${{ github.repository_owner }}/sqlproxy-backend \ # Assuming this is the image name in your values.yaml
+          --set image.tag=${{ steps.get_version.outputs.VERSION }} \
+          # Add any other --set commands or specify a values file:
+          # --values ./deploy/helm/sqlproxy/values-production.yaml \
+          --wait # Optional: wait for resources to be ready
+      env:
+        KUBECONFIG: ${{ steps.kubeconfig.outputs.kubeconfig }}

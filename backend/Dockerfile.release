@@ -1,0 +1,45 @@
+# Stage 1: Build the application with Poetry
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Install poetry
+RUN pip install poetry
+
+# Copy only files necessary for Poetry to resolve dependencies
+COPY backend/pyproject.toml backend/poetry.lock* ./
+
+# Install project dependencies
+# --no-dev: Exclude development dependencies
+# --no-interaction: Do not ask any interactive questions
+# --no-ansi: Disable ANSI output
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+# Copy the rest of the backend application code
+COPY backend/ ./
+
+# Copy the built frontend assets from the context (repo root)
+# Assumes frontend was built to ./frontend/dist in a previous GitHub Actions step
+COPY frontend/dist /app/static/frontend # Adjust /app/static/frontend as needed
+
+# Stage 2: Create the final lean image
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Copy the virtual environment from the builder stage
+COPY --from=builder /app/.venv /.venv
+# Copy the application code (which now includes static assets if copied above)
+COPY --from=builder /app/ ./
+
+# Make sure the Python interpreter from the .venv is in the PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Expose the port your application runs on
+EXPOSE 8000 # Or your application's port
+
+# Command to run your application (using the Python from the .venv)
+# This depends on how your Poetry project is structured and run
+# e.g., if you have a run script in pyproject.toml: poetry run start
+# or directly: uvicorn sqlproxy.main:app --host 0.0.0.0 --port 8000
+CMD ["uvicorn", "sqlproxy.main:app", "--host", "0.0.0.0", "--port", "8000"] # Example for FastAPI/Uvicorn
