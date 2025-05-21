@@ -1,1 +1,16 @@
+fastapi
+uvicorn
+python-dotenv
+sqlparse
+pydantic
+pydantic-settings>=2.0
+email-validator>=2.0
+requests>=2.31.0
+msal>=1.22.0
+pyodbc>=5.0.1
+redis
+httpx
+loguru
+sqlalchemy
+psycopg2-binary>=2.9
 numpy>=1.23.0
