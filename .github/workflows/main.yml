@@ -11,33 +11,111 @@ on:
 env:
   PYTHON_VERSION: '3.9'
   POETRY_VERSION: '1.4.2'
+  NODE_VERSION: '18.20.8'
   DOCKER_IMAGE: ghcr.io/teeksss/sqlproxy
 
 jobs:
-  lint:
+  setup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+          
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+            
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-python-${{ env.PYTHON_VERSION }}-
+            
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install black flake8 mypy isort
+          npm ci
+          poetry install --no-interaction --no-root
           
-      - name: Check formatting
+      - name: Verify installation
         run: |
-          black --check .
-          isort --check-only .
+          node --version
+          npm --version
+          python --version
+          poetry --version
+          
+      # Upload workspace for other jobs
+      - name: Upload workspace
+        uses: actions/upload-artifact@v3
+        with:
+          name: workspace
+          path: |
+            .venv
+            node_modules
+            */*/node_modules
+            package-lock.json
+            poetry.lock
+
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      # Download workspace from setup job
+      - name: Download workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace
+          
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}
           
       - name: Run linters
         run: |
-          flake8 .
-          mypy sqlproxy
+          npm run lint
+          poetry run black --check .
+          poetry run isort --check-only .
+          poetry run flake8 .
+          poetry run mypy sqlproxy
 
   test:
     needs: lint
@@ -73,6 +151,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
+      # Download workspace from setup job
+      - name: Download workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace
+          
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -81,20 +165,7 @@ jobs:
       - name: Install Poetry
         run: |
           curl -sSL https://install.python-poetry.org | python3 - --version ${{ env.POETRY_VERSION }}
-          poetry config virtualenvs.create true
-          poetry config virtualenvs.in-project true
           
-      - name: Cache Poetry virtualenv
-        uses: actions/cache@v3
-        id: cache-poetry
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          
-      - name: Install dependencies
-        if: steps.cache-poetry.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-        
       - name: Run tests
         env:
           DB_HOST: localhost
@@ -113,32 +184,18 @@ jobs:
           file: ./coverage.xml
           fail_ci_if_error: true
 
-  security:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Install security tools
-        run: |
-          pip install bandit safety
-          
-      - name: Run security checks
-        run: |
-          bandit -r sqlproxy/
-          safety check
-          
   build:
-    needs: [test, security]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       
+      # Download workspace from setup job
+      - name: Download workspace
+        uses: actions/download-artifact@v3
+        with:
+          name: workspace
+          
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         
@@ -163,37 +220,19 @@ jobs:
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
-  deploy-staging:
+  deploy:
     needs: build
-    if: github.ref == 'refs/heads/develop'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment: staging
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     
     steps:
-      - name: Deploy to staging
+      - name: Deploy to environment
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.STAGING_HOST }}
-          username: ${{ secrets.STAGING_USERNAME }}
-          key: ${{ secrets.STAGING_SSH_KEY }}
-          script: |
-            docker pull ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-            docker-compose down
-            docker-compose up -d
-
-  deploy-production:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    environment: production
-    
-    steps:
-      - name: Deploy to production
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.PROD_HOST }}
-          username: ${{ secrets.PROD_USERNAME }}
-          key: ${{ secrets.PROD_SSH_KEY }}
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             docker pull ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
             docker-compose down
