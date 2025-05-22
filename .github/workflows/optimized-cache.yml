@@ -1,0 +1,106 @@
+name: Optimized Cache Strategy
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: '3.9'
+  POETRY_VERSION: '1.4.2'
+  NODE_VERSION: '18.20.8'
+  DOCKER_IMAGE: ghcr.io/teeksss/sqlproxy
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    # 1. Python ve pip cache
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements*.txt
+          setup.py
+          pyproject.toml
+    
+    # 2. Poetry cache
+    - name: Setup Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: ${{ env.POETRY_VERSION }}
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+        installer-parallel: true
+    
+    # 3. Dependencies cache - multiple layers
+    - name: Cache poetry virtual environment
+      uses: actions/cache@v3
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-py-${{ env.PYTHON_VERSION }}-poetry-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-py-${{ env.PYTHON_VERSION }}-poetry-
+    
+    # 4. Global pip cache
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    # 5. Test results cache
+    - name: Cache test results
+      uses: actions/cache@v3
+      with:
+        path: .pytest_cache
+        key: ${{ runner.os }}-pytest-cache-${{ hashFiles('tests/**/*.py') }}-${{ hashFiles('sqlproxy/**/*.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pytest-cache-
+    
+    # 6. Mypy cache
+    - name: Cache mypy
+      uses: actions/cache@v3
+      with:
+        path: .mypy_cache
+        key: ${{ runner.os }}-mypy-${{ hashFiles('sqlproxy/**/*.py') }}
+        restore-keys: |
+          ${{ runner.os }}-mypy-
+    
+    # 7. Docker layer caching
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      with:
+        buildkitd-flags: --debug
+    
+    # 8. Build with layer caching
+    - name: Build Docker image with cache
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        load: true
+        tags: ${{ env.DOCKER_IMAGE }}:test
+        cache-from: |
+          type=gha,scope=${{ github.workflow }}
+          type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+        cache-to: type=gha,scope=${{ github.workflow }},mode=max
+    
+    # Install dependencies
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        poetry install
+    
+    # Run tests
+    - name: Run tests
+      run: |
+        poetry run pytest tests/ -v

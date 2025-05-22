@@ -1,0 +1,38 @@
+# Cache invalidation strategy based on file changes
+invalidation_rules:
+  - name: python_dependencies
+    files:
+      - requirements*.txt
+      - setup.py
+      - pyproject.toml
+    actions:
+      - invalidate: pip_cache
+      - invalidate: venv_cache
+      
+  - name: source_code
+    files:
+      - sqlproxy/**/*.py
+    actions:
+      - invalidate: test_cache
+      - invalidate: mypy_cache
+      
+  - name: test_code
+    files:
+      - tests/**/*.py
+    actions:
+      - invalidate: test_cache
+      
+  - name: docker_build
+    files:
+      - Dockerfile*
+      - docker-compose*.yml
+    actions:
+      - invalidate: docker_cache
+
+# Cache retention policy
+retention:
+  pip_cache: 7d
+  venv_cache: 3d
+  test_cache: 1d
+  mypy_cache: 2d
+  docker_cache: 5d

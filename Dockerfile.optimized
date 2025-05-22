@@ -1,0 +1,44 @@
+# Builder stage - dependencies only
+FROM python:3.9-slim AS builder-deps
+
+WORKDIR /app
+
+COPY requirements*.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Builder stage - code
+FROM builder-deps AS builder-code
+
+COPY sqlproxy/ sqlproxy/
+COPY setup.py ./
+RUN pip install --no-cache-dir -e .
+
+# Test stage
+FROM builder-code AS test
+
+COPY tests/ tests/
+RUN pip install --no-cache-dir pytest pytest-cov
+RUN pytest tests/ -v --cov=sqlproxy
+
+# Production stage
+FROM python:3.9-slim AS production
+
+WORKDIR /app
+
+# Copy only what's needed from the builder
+COPY --from=builder-deps /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+COPY --from=builder-code /app/sqlproxy /app/sqlproxy
+
+# Runtime configuration
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Create non-root user
+RUN useradd -m -u 1000 sqlproxy
+USER sqlproxy
+
+# Health check and startup
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD python -c "from sqlproxy.core.health import check_health; check_health()"
+
+CMD ["python", "-m", "sqlproxy"]

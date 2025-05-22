@@ -1,0 +1,182 @@
+name: Optimized Test Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Test gruplarını parçalara ayırma
+  test-setup:
+    runs-on: ubuntu-latest
+    outputs:
+      test-chunks: ${{ steps.split-tests.outputs.test-chunks }}
+      test-count: ${{ steps.split-tests.outputs.test-count }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest
+    
+    # Test gruplarını tanımla ve parçalara ayır
+    - name: Split tests into chunks
+      id: split-tests
+      run: |
+        # Tüm test dosyalarını bul ve grupla
+        TEST_FILES=$(find tests -name "test_*.py" | sort)
+        TEST_COUNT=$(echo "$TEST_FILES" | wc -l)
+        
+        # Test gruplarını oluştur
+        CHUNKS=5
+        if [ $TEST_COUNT -lt $CHUNKS ]; then
+          CHUNKS=$TEST_COUNT
+        fi
+        
+        # GitHub Actions outputs için JSON formatına çevir
+        echo "test-count=$TEST_COUNT" >> $GITHUB_OUTPUT
+        
+        # Test gruplarını JSON formatında hazırla
+        echo "test-chunks<<EOF" >> $GITHUB_OUTPUT
+        python -c "
+        import json
+        import math
+        
+        test_files = '''$TEST_FILES'''.strip().split('\n')
+        chunks = $CHUNKS
+        chunk_size = math.ceil(len(test_files) / chunks)
+        
+        test_chunks = []
+        for i in range(0, len(test_files), chunk_size):
+            test_chunks.append(test_files[i:i + chunk_size])
+        
+        print(json.dumps(test_chunks))
+        " >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+  # Her test grubu için paralel çalışacak job'lar
+  parallel-tests:
+    needs: test-setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+        chunk: ${{ fromJson(needs.test-setup.outputs.test-chunks) }}
+      # Hata durumunda diğer testlerin çalışmaya devam etmesi
+      fail-fast: false
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements*.txt
+          pyproject.toml
+          setup.py
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-xdist pytest-cov pytest-timeout
+        pip install numpy pandas scipy
+        pip install sqlalchemy psycopg2-binary redis
+        pip install -e .
+    
+    - name: Run tests in parallel
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_NAME: test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
+      run: |
+        # Test dosyalarını parametre olarak verelim
+        TEST_FILES="${{ join(matrix.chunk, ' ') }}"
+        
+        # Test gruplarını paralel olarak çalıştır
+        python -m pytest $TEST_FILES \
+          -v \
+          --cov=sqlproxy \
+          --cov-report=xml:coverage-${{ strategy.job-index }}.xml \
+          -n auto \
+          --dist loadscope \
+          --timeout=300
+    
+    - name: Upload partial coverage
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-${{ strategy.job-index }}
+        path: coverage-${{ strategy.job-index }}.xml
+
+  # Coverage raporlarını birleştir
+  merge-coverage:
+    needs: parallel-tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install coverage tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install coverage
+    
+    - name: Download all coverage reports
+      uses: actions/download-artifact@v3
+      with:
+        path: coverage-reports
+    
+    - name: Merge coverage reports
+      run: |
+        coverage combine coverage-reports/coverage-*/coverage-*.xml
+        coverage xml -o coverage.xml
+        coverage report
+    
+    - name: Upload combined coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: true
