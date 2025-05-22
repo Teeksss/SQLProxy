@@ -1,10 +1,10 @@
-name: CI/CD
+name: SQLProxy CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   test:
@@ -14,12 +14,25 @@ jobs:
       postgres:
         image: postgres:13
         env:
-          POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test_db
         ports:
           - 5432:5432
-        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v2
@@ -32,57 +45,67 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r backend/requirements.txt
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
         
-    - name: Run backend tests
+    - name: Run Tests
+      env:
+        DB_HOST: localhost
+        DB_PORT: 5432
+        DB_USER: postgres
+        DB_PASSWORD: postgres
+        DB_NAME: test_db
+        REDIS_HOST: localhost
+        REDIS_PORT: 6379
       run: |
-        cd backend
-        pytest --cov=src
+        pytest tests/ --cov=src --cov-report=xml
         
-    - name: Set up Node.js
-      uses: actions/setup-node@v2
+    - name: Upload coverage
+      uses: codecov/codecov-action@v2
       with:
-        node-version: '14'
-        
-    - name: Install frontend dependencies
-      run: |
-        cd frontend
-        npm install
-        
-    - name: Run frontend tests
-      run: |
-        cd frontend
-        npm test
-        
-    - name: Run E2E tests
-      run: |
-        cd frontend
-        npm run cypress
+        file: ./coverage.xml
 
-  deploy:
+  build:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     
     steps:
     - uses: actions/checkout@v2
     
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+      
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Build and push
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: teeksss/sqlproxy:${{ github.sha }}
+        cache-from: type=registry,ref=teeksss/sqlproxy:latest
+        cache-to: type=inline
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
+        aws-region: eu-west-1
         
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-      
-    - name: Build and push Docker images
+    - name: Update ECS service
       run: |
-        docker-compose build
-        docker-compose push
-        
-    - name: Deploy to ECS
-      run: |
-        aws ecs update-service --cluster sqlproxy --service sqlproxy-service --force-new-deployment
+        aws ecs update-service \
+          --cluster sqlproxy-cluster \
+          --service sqlproxy-service \
+          --force-new-deployment
