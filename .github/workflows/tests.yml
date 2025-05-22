@@ -9,34 +9,42 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    
     steps:
     - uses: actions/checkout@v2
-
+    
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.11'
-
+        
     - name: Cache pip packages
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-
+          
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install numpy pandas scipy  # Explicitly install numpy first
-        cd backend
-        pip install -r requirements.txt
-        pip install -r requirements-dev.txt
-
+        pip install pytest==7.4.0 \
+                    pytest-asyncio==0.21.1 \
+                    pytest-cov==4.1.0 \
+                    pytest-mock==3.11.1 \
+                    pytest-xdist==3.3.1
+        pip install numpy==1.24.3 pandas==2.0.3 scipy==1.10.1
+        pip install -e .[dev]
+        
+    - name: Verify installation
+      run: |
+        python -c "import pytest; print(f'pytest version: {pytest.__version__}')"
+        python -c "import numpy; print(f'numpy version: {numpy.__version__}')"
+        which pytest
+        
     - name: Run tests
       env:
-        PYTHONPATH: ${{ github.workspace }}/backend
+        PYTHONPATH: ${{ github.workspace }}
       run: |
-        cd backend
-        pytest tests/ -v --cov=app --cov-report=xml
+        pytest tests/ -v --cov=sqlproxy --cov-report=xml

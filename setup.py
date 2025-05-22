@@ -3,28 +3,29 @@ from setuptools import setup, find_packages
 setup(
     name="sqlproxy",
     version="0.1.0",
-    packages=find_packages(),
+    packages=find_packages(include=['sqlproxy', 'sqlproxy.*']),
     install_requires=[
-        "fastapi>=0.68.0",
-        "uvicorn>=0.15.0",
-        "sqlalchemy>=1.4.0",
-        "psycopg2-binary>=2.9.0",
-        "redis>=4.0.0",
-        "pydantic>=1.8.0",
-        "numpy>=1.21.0",
-        "pandas>=1.3.0",
-        "scipy>=1.7.0",
-        "locust>=2.8.0",
+        "fastapi>=0.100.0",
+        "uvicorn>=0.22.0",
+        "sqlalchemy>=2.0.18",
+        "psycopg2-binary>=2.9.6",
+        "redis>=4.6.0",
+        "pydantic>=2.0.2",
+        "numpy>=1.24.3",
+        "pandas>=2.0.3",
+        "scipy>=1.10.1"
     ],
     extras_require={
         'dev': [
-            'pytest>=7.0.0',
-            'pytest-asyncio>=0.18.0',
-            'pytest-cov>=2.12.0',
-            'pytest-mock>=3.6.0',
-            'pytest-benchmark>=3.4.0',
-            'memory-profiler>=0.58.0',
-            'psutil>=5.8.0',
+            "pytest>=7.4.0",
+            "pytest-asyncio>=0.21.1",
+            "pytest-cov>=4.1.0",
+            "pytest-mock>=3.11.1",
+            "pytest-xdist>=3.3.1",
+            "black>=23.3.0",
+            "flake8>=6.0.0",
+            "mypy>=1.4.1",
+            "pre-commit>=3.3.3"
         ]
     }
 )
