@@ -1,27 +1,34 @@
-import os
-import sys
 import pytest
 
-# Add project root to Python path
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, project_root)
+def pytest_configure(config):
+    """Test markerlarını tanımla"""
+    config.addinivalue_line(
+        "markers",
+        "unit: Unit tests"
+    )
+    config.addinivalue_line(
+        "markers", 
+        "integration: Integration tests"
+    )
+    config.addinivalue_line(
+        "markers",
+        "performance: Performance tests"
+    )
+    config.addinivalue_line(
+        "markers",
+        "benchmark: Benchmark tests"
+    )
+    config.addinivalue_line(
+        "markers",
+        "security: Security tests"
+    )
 
-@pytest.fixture(scope='session')
-def test_app():
-    from sqlproxy.main import app
-    return app
-
-@pytest.fixture(scope='session')
-def test_client():
-    from fastapi.testclient import TestClient
-    from sqlproxy.main import app
-    return TestClient(app)
-
-@pytest.fixture(autouse=True)
-def setup_test_env():
-    """Test environment setup"""
-    os.environ['TESTING'] = 'true'
-    os.environ['DB_HOST'] = 'localhost'
-    os.environ['REDIS_HOST'] = 'localhost'
-    yield
-    os.environ.pop('TESTING', None)
+@pytest.fixture(scope="session")
+def test_categories():
+    """Test kategorilerini tanımlar"""
+    return {
+        'unit': ['core', 'utils', 'security'],
+        'integration': ['database', 'redis', 'api'],
+        'performance': ['benchmarks', 'profiling', 'load'],
+        'security': ['injection', 'authentication', 'authorization']
+    }
