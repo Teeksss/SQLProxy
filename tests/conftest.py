@@ -1,34 +1,44 @@
+import os
+import sys
 import pytest
+from pathlib import Path
+
+# Add project root to Python path
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 def pytest_configure(config):
-    """Test markerlarını tanımla"""
-    config.addinivalue_line(
-        "markers",
-        "unit: Unit tests"
-    )
-    config.addinivalue_line(
-        "markers", 
-        "integration: Integration tests"
-    )
-    config.addinivalue_line(
-        "markers",
-        "performance: Performance tests"
-    )
-    config.addinivalue_line(
-        "markers",
-        "benchmark: Benchmark tests"
-    )
-    config.addinivalue_line(
-        "markers",
-        "security: Security tests"
-    )
+    """Configure test environment"""
+    # Set testing flag
+    os.environ["TESTING"] = "1"
+    
+    # Add project root to PYTHONPATH
+    if "PYTHONPATH" in os.environ:
+        os.environ["PYTHONPATH"] = f"{PROJECT_ROOT}:{os.environ['PYTHONPATH']}"
+    else:
+        os.environ["PYTHONPATH"] = str(PROJECT_ROOT)
 
 @pytest.fixture(scope="session")
-def test_categories():
-    """Test kategorilerini tanımlar"""
-    return {
-        'unit': ['core', 'utils', 'security'],
-        'integration': ['database', 'redis', 'api'],
-        'performance': ['benchmarks', 'profiling', 'load'],
-        'security': ['injection', 'authentication', 'authorization']
-    }
+def test_db():
+    """Database test fixture"""
+    from sqlproxy.core.database import Database
+    db = Database(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", 5432)),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASSWORD", "postgres"),
+        database=os.getenv("DB_NAME", "test_db")
+    )
+    yield db
+    db.close()
+
+@pytest.fixture(scope="session")
+def test_redis():
+    """Redis test fixture"""
+    from sqlproxy.core.redis_client import RedisClient
+    client = RedisClient(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379))
+    )
+    yield client
+    client.close()

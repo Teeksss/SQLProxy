@@ -1,22 +1,45 @@
 SQLProxy/
-├── setup.py
-├── pyproject.toml
 ├── sqlproxy/
 │   ├── __init__.py
 │   ├── core/
 │   │   ├── __init__.py
-│   │   ├── benchmark.py
-│   │   ├── performance.py
-│   │   ├── analysis.py
-│   │   ├── profiler.py
-│   │   └── query_executor.py
+│   │   ├── database.py
+│   │   ├── query_executor.py
+│   │   └── redis_client.py
+│   ├── performance/
+│   │   ├── __init__.py
+│   │   ├── analyzer.py
+│   │   ├── benchmarks.py
+│   │   └── profiler.py
 │   ├── security/
 │   │   ├── __init__.py
-│   │   └── injection_checker.py
+│   │   └── query_security.py
 │   └── utils/
 │       ├── __init__.py
-│       └── performance_analyzer.py
+│       └── helpers.py
 ├── tests/
 │   ├── __init__.py
 │   ├── conftest.py
-│   └── ... (test files)
+│   ├── benchmark/
+│   │   ├── __init__.py
+│   │   └── test_benchmarks.py
+│   ├── integration/
+│   │   ├── __init__.py
+│   │   └── test_database_integration.py
+│   ├── load/
+│   │   ├── __init__.py
+│   │   └── test_load_capacity.py
+│   ├── performance/
+│   │   ├── __init__.py
+│   │   ├── test_performance_analysis.py
+│   │   ├── test_performance_analyzer.py
+│   │   └── test_query_performance.py
+│   ├── profiling/
+│   │   ├── __init__.py
+│   │   └── test_profiling.py
+│   ├── security/
+│   │   ├── __init__.py
+│   │   └── test_query_security.py
+│   └── unit/
+│       ├── __init__.py
+│       └── test_query_executor.py
