@@ -1,0 +1,9 @@
+{
+  "default": {
+    "host": "localhost",
+    "port": 5432,
+    "database": "maindb",
+    "user": "dbuser",
+    "password": "dbpass"
+  }
+}
