@@ -1,0 +1,22 @@
+SQLProxy/
+├── setup.py
+├── pyproject.toml
+├── sqlproxy/
+│   ├── __init__.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── benchmark.py
+│   │   ├── performance.py
+│   │   ├── analysis.py
+│   │   ├── profiler.py
+│   │   └── query_executor.py
+│   ├── security/
+│   │   ├── __init__.py
+│   │   └── injection_checker.py
+│   └── utils/
+│       ├── __init__.py
+│       └── performance_analyzer.py
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   └── ... (test files)
