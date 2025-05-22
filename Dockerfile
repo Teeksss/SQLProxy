@@ -1,47 +1,44 @@
-# Build stage
-FROM python:3.9-slim as builder
+FROM python:3.10-slim AS builder
 
 WORKDIR /app
 
-# Install poetry
+# Poetry kurulumu
 RUN pip install poetry==1.4.2
 
-# Copy dependency files
-COPY pyproject.toml poetry.lock ./
+# Sadece pyproject.toml dosyasını kopyala (poetry.lock olmadan)
+COPY pyproject.toml ./
 
-# Install dependencies
+# poetry.lock dosyasını oluştur
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev --no-interaction --no-ansi
+    && poetry lock --no-update \
+    && poetry install --no-interaction --no-ansi
 
-# Copy source code
-COPY sqlproxy sqlproxy/
+# Kaynak kodu kopyala
+COPY sqlproxy/ sqlproxy/
+COPY README.md ./
 
-# Production stage
-FROM python:3.9-slim
+# Test dosyalarını kopyala (opsiyonel)
+COPY tests/ tests/
+
+# Uygulamayı kurmak için
+RUN pip install -e .
+
+# Üretim aşaması
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy dependencies and source from builder
-COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
+# Bağımlılıkları ve uygulamayı builder'dan kopyala
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
 COPY --from=builder /app/sqlproxy /app/sqlproxy
 
-# Runtime dependencies
-RUN apt-get update && apt-get install -y \
-    postgresql-client \
-    redis-tools \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -m -u 1000 sqlproxy
-USER sqlproxy
-
-# Environment variables
-ENV PYTHONPATH=/app
+# Gerekli ortam değişkenlerini ayarla
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
-# Health check
+# Sağlık kontrolü için
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "from sqlproxy.core.health import check_health; check_health()"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"
 
-# Start command
+# Uygulamayı çalıştır
 CMD ["python", "-m", "sqlproxy"]

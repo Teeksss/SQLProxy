@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from sqlproxy.core.database.integration import DatabaseIntegration
 from sqlproxy.core.redis.connection import RedisConnection
 from sqlproxy.core.query.cache import QueryCache
-from sqlproxy.performance.analyzer import PerformanceAnalyzer
+from sqlproxy.core.query.parser import QueryParser
 from sqlproxy.security.query_security import SQLInjectionChecker
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,10 @@ class QueryExecutor:
         self.redis = redis_connection
         self.query_cache = QueryCache(redis_connection) if redis_connection and enable_cache else None
         self.security_checker = SQLInjectionChecker() if enable_security else None
+        self.query_parser = QueryParser()
+        
+        # Import here to avoid circular imports
+        from sqlproxy.core.performance.analyzer import PerformanceAnalyzer
         self.performance_analyzer = PerformanceAnalyzer() if enable_monitoring else None
         
     def execute(
@@ -62,6 +66,10 @@ class QueryExecutor:
         start_time = time.time()
         memory_before = self._get_memory_usage()
         
+        # Parse query
+        parsed_query = self.query_parser.parse(query)
+        query_type = parsed_query.get('type', 'unknown')
+        
         # Security check
         if self.security_checker:
             issues = self.security_checker.check_query(query)
@@ -72,7 +80,7 @@ class QueryExecutor:
         
         # Check cache
         cache_key = None
-        if self.query_cache and use_cache:
+        if self.query_cache and use_cache and query_type.lower() in ('select', 'show'):
             cache_key = self.query_cache.get_cache_key(query, params)
             cached_result = self.query_cache.get(cache_key)
             if cached_result:
@@ -81,11 +89,10 @@ class QueryExecutor:
                 # Record performance even for cached queries
                 if self.performance_analyzer:
                     end_time = time.time()
-                    self.performance_analyzer.metrics.add_metric(
+                    self.performance_analyzer.record_query(
+                        query=query,
                         execution_time=end_time - start_time,
-                        query_count=1,
-                        memory_usage=0,  # No additional memory for cached query
-                        timestamp=None
+                        query_type=f"{query_type}_cached"
                     )
                 
                 return cached_result
@@ -94,19 +101,23 @@ class QueryExecutor:
         try:
             result = self.db.execute_query(query, params)
             
-            # Cache result
-            if self.query_cache and use_cache and cache_key:
+            # Cache result for read-only queries
+            if self.query_cache and use_cache and cache_key and query_type.lower() in ('select', 'show'):
                 self.query_cache.set(cache_key, result, cache_ttl)
             
             # Record performance
             if self.performance_analyzer:
                 end_time = time.time()
                 memory_after = self._get_memory_usage()
+                self.performance_analyzer.record_query(
+                    query=query,
+                    execution_time=end_time - start_time,
+                    query_type=query_type
+                )
                 self.performance_analyzer.metrics.add_metric(
                     execution_time=end_time - start_time,
                     query_count=1,
-                    memory_usage=memory_after - memory_before,
-                    timestamp=None
+                    memory_usage=memory_after - memory_before
                 )
             
             return result
@@ -116,11 +127,14 @@ class QueryExecutor:
     
     def _get_memory_usage(self) -> float:
         """Get current memory usage"""
-        import os
-        import psutil
-        
-        process = psutil.Process(os.getpid())
-        return process.memory_info().rss / 1024 / 1024  # MB
+        try:
+            import os
+            import psutil
+            
+            process = psutil.Process(os.getpid())
+            return process.memory_info().rss / (1024 * 1024)  # MB
+        except ImportError:
+            return 0.0  # If psutil not available
 
 
 class SecurityError(Exception):

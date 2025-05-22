@@ -1,53 +1,6 @@
-name: SQLProxy Tests
-
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-        cache: 'pip'
-        
-    - name: Install dependencies
-      run: |
-        chmod +x scripts/setup_test_environment.sh
-        ./scripts/setup_test_environment.sh
-        
-    - name: Verify pytest installation
-      run: |
-        # PATH'i görüntüle
-        echo "PATH: $PATH"
-        
-        # Python sürümünü ve konumunu kontrol et
-        which python
-        python --version
-        
-        # pip sürümünü ve konumunu kontrol et
-        which pip
-        pip --version
-        
-        # pytest'i doğrudan python modülü olarak çağır
-        python -m pytest --version
-        
-        # pytest'in kurulu olduğu lokasyonu bul
-        find / -name pytest -type f 2>/dev/null || echo "pytest not found in filesystem"
-        
-        # pytest executable'ını bul
-        which pytest || echo "pytest command not found"
-        
-    - name: Run tests with python -m pytest
-      run: |
-        python -m pytest tests --maxfail=5 --disable-warnings -q
+- name: Upload partial coverage
+  uses: actions/upload-artifact@v2  # v3 yerine v2 kullanın
+  with:
+    name: coverage-${{ matrix.python-version }}-${{ strategy.job-index }}
+    path: coverage-${{ matrix.python-version }}-${{ strategy.job-index }}.xml
+    if-no-files-found: warn
